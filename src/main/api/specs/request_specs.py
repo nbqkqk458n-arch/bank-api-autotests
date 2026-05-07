@@ -1,8 +1,8 @@
 from src.main.api.models.login_user_request import LoginUserRequest
 from src.main.api.models.login_user_response import LoginUserResponse
 import requests
+from src.main.api.configs.config import Config
 class RequestSpecs:
-    Base_URL = 'http://localhost:4111/api'
     @staticmethod
     def base_header():
         return {
@@ -12,10 +12,10 @@ class RequestSpecs:
 
     @staticmethod
     def auth_headers(username:str, password:str):
-        requests=LoginUserRequest
+        request=LoginUserRequest(username=username, password=password)
         response = requests.post(
             url='http://localhost:4111/api/auth/token/login',
-            json=requests.model_dump(),
+            json=request.model_dump(),
             headers=RequestSpecs.base_header()
         )
         if response.status_code == 200:
@@ -25,7 +25,15 @@ class RequestSpecs:
             headers['Authorization'] = f'Bearer {token}'
             return {
                 'headers':headers,
-                'base_url': RequestSpecs.Base_URL
+                'base_url': Config.fetch('backendUrl')
             }
         raise Exception('Failed to login')
+
+    @staticmethod
+    def unauth_headers():
+        return {
+            'headers': RequestSpecs.base_header(),
+            'base_url':Config.fetch('backendUrl')
+        }
+
 
