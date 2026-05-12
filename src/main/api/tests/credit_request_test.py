@@ -16,8 +16,8 @@ class TestCreditRequest:
 
 
     def test_credit_request_invalid(self,db_session: Session, api_manager: ApiManager, create_secret_user_request: CreateUserRequest, credit_request_request_invalid: CreditRequestRequest):
-        api_manager.user_steps.credit_request_request_invalid(create_secret_user_request, credit_request_request_invalid)   # По спецификации должна вернуться 422, баг.
+        api_manager.user_steps.credit_request_request_invalid(create_secret_user_request, credit_request_request_invalid)
         credit_from_db = Credit.get_credit_by_id(db_session,credit_request_request_invalid.accountId)
         assert credit_from_db is None, 'Кредит есть в базе'
-
+# По спецификации должна вернуться 422, баг.
 
