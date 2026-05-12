@@ -1,104 +1,26 @@
-from src.main.api.models.deposit_account_request import DepositAccountRequest
 import pytest
-from src.main.api.models.login_user_request import LoginUserRequest
+from src.main.api.db.crud.transaction_crud import TransferCrudDb as Transfer
+from sqlalchemy.orm import Session
+from src.main.api.classes.api_manager import ApiManager
 from src.main.api.models.create_user_request import CreateUserRequest
-from src.main.api.requests.login_user_requester import LoginUserRequester
-from src.main.api.specs.request_specs import RequestSpecs
-from src.main.api.specs.response_specs import ResponseSpecs
-from src.main.api.requests.create_user_requester import CreateUserRequester
-from src.main.api.requests.create_account_requester import CreateAccountRequester
-from src.main.api.requests.deposit_account_requester import DepositAccountRequester
 from src.main.api.models.transfer_account_request import TransferAccountRequest
-from src.main.api.requests.transfer_account_requester import TransferAccountRequester
+
 @pytest.mark.api
 class TestTransferAccount:
-    def test_transfer_account_valid(self):
-        create_user_request = CreateUserRequest(username='Max909', password="Pas!sw0rd", role="ROLE_USER")
-
-        CreateUserRequester(
-            request_spec=RequestSpecs.auth_headers(username='admin', password='123456'),
-            response_spec=ResponseSpecs.request_ok()
-        ).post(create_user_request)
-
-        login_user_request = LoginUserRequest(username='Max909', password='Pas!sw0rd')
-
-        LoginUserRequester(
-            request_spec=RequestSpecs.unauth_headers(),
-            response_spec=ResponseSpecs.request_ok()
-
-        ).post(login_user_request)
-
-        response = CreateAccountRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max909', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_created()
-        ).post()
-
-
-        response2 = CreateAccountRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max909', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_created()
-        ).post()
-
-        deposit_account_request = DepositAccountRequest(accountId=response.id, amount=1000)
-
-        response = DepositAccountRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max909', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_ok()
-
-        ).post(deposit_account_request)
-
-
-        transfer_account_request = TransferAccountRequest(fromAccountId=response.id,toAccountId=response2.id, amount= 500)
-
-        response = TransferAccountRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max909',password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_ok()
-        ).post(transfer_account_request)
-
+    def test_transfer_account_valid(self,db_session:Session, api_manager:ApiManager, create_user_request:CreateUserRequest,transfer_account_request:TransferAccountRequest):
+        response = api_manager.user_steps.transfer_account(create_user_request,transfer_account_request)
         assert response.fromAccountIdBalance == 500
+        transfer_from_db = Transfer.get_transfer_by_data(db_session, transfer_account_request.toAccountId,transfer_account_request.fromAccountId,transfer_account_request.amount)
+        assert transfer_from_db.from_account_id==response.fromAccountId, 'Не совпадают аккаунты списания'
+        assert transfer_from_db.amount ==transfer_account_request.amount, 'Не совпадают суммы переводов'
 
 
-    def test_transfer_account_invalid(self):
-        create_user_request = CreateUserRequest(username='Max910', password="Pas!sw0rd", role="ROLE_USER")
+    def test_transfer_account_invalid(self,db_session:Session, api_manager:ApiManager, create_user_request:CreateUserRequest,transfer_account_request_invalid:TransferAccountRequest):
+        api_manager.user_steps.transfer_account_invalid(create_user_request,transfer_account_request_invalid)
+        transfer_from_db = Transfer.get_transfer_by_data(db_session, transfer_account_request_invalid.toAccountId,transfer_account_request_invalid.fromAccountId,transfer_account_request_invalid.amount)
+        assert transfer_from_db is None, 'Перевод осуществлен'
 
-        CreateUserRequester(
-            request_spec=RequestSpecs.auth_headers(username='admin', password='123456'),
-            response_spec=ResponseSpecs.request_ok()
-        ).post(create_user_request)
 
-        login_user_request = LoginUserRequest(username='Max910', password='Pas!sw0rd')
-
-        LoginUserRequester(
-            request_spec=RequestSpecs.unauth_headers(),
-            response_spec=ResponseSpecs.request_ok()
-
-        ).post(login_user_request)
-
-        response = CreateAccountRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max910', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_created()
-        ).post()
-
-        response2 = CreateAccountRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max910', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_created()
-        ).post()
-
-        deposit_account_request = DepositAccountRequest(accountId=response.id, amount=1000)
-
-        response = DepositAccountRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max910', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_ok()
-
-        ).post(deposit_account_request)
-
-        transfer_account_request = TransferAccountRequest(fromAccountId=response.id, toAccountId=response2.id,
-                                                          amount=400)
-
-        TransferAccountRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max910', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_bad()
-        ).post(transfer_account_request)
 
 
 

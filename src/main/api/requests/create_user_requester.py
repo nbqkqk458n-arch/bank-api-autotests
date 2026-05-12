@@ -4,7 +4,6 @@ from src.main.api.models.create_user_response import CreateUserResponse
 import requests
 from http import HTTPStatus
 
-
 class CreateUserRequester(Requester):
     def post(self, create_user_request: CreateUserRequest):
         url=f'{self.base_url}/admin/create'

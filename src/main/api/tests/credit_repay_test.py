@@ -1,70 +1,21 @@
-from src.main.api.models.credit_repay_request import CreditRepayRequest
-from src.main.api.models.credit_request_request import CreditRequestRequest
 import pytest
 from src.main.api.models.create_user_request import CreateUserRequest
-from src.main.api.specs.request_specs import RequestSpecs
-from src.main.api.specs.response_specs import ResponseSpecs
-from src.main.api.requests.create_user_requester import CreateUserRequester
-from src.main.api.requests.create_account_requester import CreateAccountRequester
-from src.main.api.requests.credit_request_requester import CreditRequestRequester
-from src.main.api.requests.credit_repay_requester import CreditRepayRequester
+from src.main.api.models.credit_repay_request import CreditRepayRequest
+from src.main.api.db.crud.credit_crud import CreditCrudDb as Credit
+from src.main.api.classes.api_manager import ApiManager
+from sqlalchemy.orm import Session
+
 @pytest.mark.api
 class TestRepayCredit:
-    def test_repay_credit_valid(self):
-        create_user_request = CreateUserRequest(username='Max903', password="Pas!sw0rd", role="ROLE_CREDIT_SECRET")
-        CreateUserRequester(
-            request_spec=RequestSpecs.auth_headers(username='admin', password='123456'),
-            response_spec=ResponseSpecs.request_ok()
-        ).post(create_user_request)
-
-        response = CreateAccountRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max903', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_created()
-        ).post()
-
-        credit_request_request = CreditRequestRequest(accountId=response.id, amount=5000, termMonths=12)
-
-        response = CreditRequestRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max903', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_created()
-        ).post(credit_request_request)
-        assert response.balance == 5000
-
-
-        credit_repay_requests=CreditRepayRequest(creditId=response.creditId, accountId=response.id, amount=5000)
-
-        response = CreditRepayRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max903', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_ok()
-        ).post(credit_repay_requests)
-
+    def test_repay_credit_valid(self,db_session: Session, api_manager: ApiManager, create_secret_user_request:CreateUserRequest, credit_repay_request:CreditRepayRequest):
+        response = api_manager.user_steps.credit_repay_request(create_secret_user_request, credit_repay_request)
         assert response.amountDeposited == 5000
-    def test_repay_credit_invalid(self):
-        create_user_request = CreateUserRequest(username='Max904', password="Pas!sw0rd", role="ROLE_CREDIT_SECRET")
-        CreateUserRequester(
-            request_spec=RequestSpecs.auth_headers(username='admin', password='123456'),
-            response_spec=ResponseSpecs.request_ok()
-        ).post(create_user_request)
-
-        response = CreateAccountRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max904', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_created()
-        ).post()
-
-        credit_request_request = CreditRequestRequest(accountId=response.id, amount=5000, termMonths=12)
-
-        response = CreditRequestRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max904', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_created()
-        ).post(credit_request_request)
-        assert response.balance == 5000
-
-        credit_repay_requests = CreditRepayRequest(creditId=response.creditId, accountId=response.id, amount=6000)
-
-        CreditRepayRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max904', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_unprocessable()
-        ).post(credit_repay_requests)
+        credit = Credit.get_credit_by_id(db_session, response.creditId)
+        assert credit.balance == 0, 'Кредит не погашен, в БД долг'
+    def test_repay_credit_invalid(self,db_session:Session, api_manager: ApiManager, create_secret_user_request:CreateUserRequest, credit_repay_request_invalid:CreditRepayRequest):
+        api_manager.user_steps.credit_repay_request_invalid(create_secret_user_request, credit_repay_request_invalid)
+        credit = Credit.get_credit_by_id(db_session, credit_repay_request_invalid.creditId)
+        assert credit.balance == -5000, 'Кредит погашен, в БД долг отсутствует'
 
 
 

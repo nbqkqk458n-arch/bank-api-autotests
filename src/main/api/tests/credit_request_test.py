@@ -1,56 +1,23 @@
-from src.main.api.models.credit_request_request import CreditRequestRequest
 import pytest
 from src.main.api.models.create_user_request import CreateUserRequest
-from src.main.api.specs.request_specs import RequestSpecs
-from src.main.api.specs.response_specs import ResponseSpecs
-from src.main.api.requests.create_user_requester import CreateUserRequester
-from src.main.api.requests.create_account_requester import CreateAccountRequester
-from src.main.api.requests.credit_request_requester import CreditRequestRequester
-
-
+from src.main.api.models.credit_request_request import CreditRequestRequest
+from src.main.api.db.crud.credit_crud import CreditCrudDb as Credit
+from src.main.api.classes.api_manager import ApiManager
+from sqlalchemy.orm import Session
 @pytest.mark.api
 class TestCreditRequest:
-    def test_credit_request_valid(self):
-        create_user_request = CreateUserRequest(username='Max905', password="Pas!sw0rd", role="ROLE_CREDIT_SECRET")
-        CreateUserRequester(
-            request_spec=RequestSpecs.auth_headers(username='admin', password='123456'),
-            response_spec=ResponseSpecs.request_ok()
-        ).post(create_user_request)
-
-        response = CreateAccountRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max905', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_created()
-        ).post()
-
-
-        credit_request_request=CreditRequestRequest(accountId=response.id, amount = 5000, termMonths= 12)
-
-        response = CreditRequestRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max905', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_created()
-        ).post(credit_request_request)
+    def test_credit_request_valid(self, db_session: Session, api_manager: ApiManager, create_secret_user_request: CreateUserRequest, credit_request_request: CreditRequestRequest):
+        response = api_manager.user_steps.credit_request_request(create_secret_user_request, credit_request_request)
         assert response.balance == 5000
+        credit_from_db = Credit.get_credit_by_id(db_session, response.creditId)
+        assert credit_from_db.id == response.creditId, 'Кредит отсутствует в базе'
+        assert credit_from_db.amount == credit_request_request.amount, 'Cумма кредита не совпадает с БД'
 
-    def test_credit_request_invalid(self):
-        create_user_request = CreateUserRequest(username='Max906', password="Pas!sw0rd", role="ROLE_CREDIT_SECRET")
-        CreateUserRequester(
-            request_spec=RequestSpecs.auth_headers(username='admin', password='123456'),
-            response_spec=ResponseSpecs.request_ok()
-        ).post(create_user_request)
 
-        response = CreateAccountRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max906', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_created()
-        ).post()
 
-        credit_request_request = CreditRequestRequest(accountId=response.id, amount=16000, termMonths=12)
-
-        CreditRequestRequester(
-            request_spec=RequestSpecs.auth_headers(username='Max906', password="Pas!sw0rd"),
-            response_spec=ResponseSpecs.request_bad()
-        ).post(credit_request_request)
-
-                                                        # По спецификации должна вернуться 422, баг.
-
+    def test_credit_request_invalid(self,db_session: Session, api_manager: ApiManager, create_secret_user_request: CreateUserRequest, credit_request_request_invalid: CreditRequestRequest):
+        api_manager.user_steps.credit_request_request_invalid(create_secret_user_request, credit_request_request_invalid)   # По спецификации должна вернуться 422, баг.
+        credit_from_db = Credit.get_credit_by_id(db_session,credit_request_request_invalid.accountId)
+        assert credit_from_db is None, 'Кредит есть в базе'
 
 

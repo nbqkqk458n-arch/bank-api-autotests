@@ -4,7 +4,6 @@ from src.main.api.models.deposit_account_response import DepositAccountResponse
 import requests
 from http import HTTPStatus
 
-
 class DepositAccountRequester(Requester):
     def post(self, deposit_account_request:DepositAccountRequest):
         url = f'{self.base_url}/account/deposit'

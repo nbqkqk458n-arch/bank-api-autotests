@@ -4,7 +4,6 @@ from src.main.api.models.transfer_account_response import TransferAccountRespons
 import requests
 from http import HTTPStatus
 
-
 class TransferAccountRequester(Requester):
     def post(self, transfer_account_request:TransferAccountRequest):
         url = f'{self.base_url}/account/transfer'

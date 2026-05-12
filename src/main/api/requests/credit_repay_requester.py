@@ -4,7 +4,6 @@ from src.main.api.models.credit_repay_response import CreditRepayResponse
 import requests
 from http import HTTPStatus
 
-
 class CreditRepayRequester(Requester):
     def post(self, credit_repay_request:CreditRepayRequest):
         url = f'{self.base_url}/credit/repay'

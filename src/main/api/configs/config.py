@@ -18,7 +18,7 @@ class Config:
                 for line in f:
                     if '=' in line:
                         key, value = line.split('=')
-                        cls._dictionary[key] = value
+                        cls._dictionary[key] = value.strip()
         return cls._isinstance
     @staticmethod
     def fetch(key: str,default_value:Any=None)->Any:
